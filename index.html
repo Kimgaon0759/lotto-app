@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="로또 추첨기">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>로또 통계 추첨기</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+    :root {
+      --bg:#1a1a2e; --surface:#16213e; --surface2:#0f3460;
+      --accent:#e63946; --text:#f0f0f0; --text2:#a0aec0;
+      --yellow:#f7c500; --blue:#3a86ff; --red:#e63946;
+      --gray:#8d8d8d; --green:#2dc060; --radius:16px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;min-height:-webkit-fill-available;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+    .app{max-width:480px;margin:0 auto;padding:24px 20px 48px}
+    .header{text-align:center;margin-bottom:20px}
+    .header-icon{font-size:40px;margin-bottom:6px;display:block}
+    .header h1{font-size:22px;font-weight:900;letter-spacing:-0.5px}
+    .update-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px;background:var(--surface);border-radius:10px;margin-bottom:16px;font-size:11px;color:var(--text2)}
+    .update-dot{width:7px;height:7px;border-radius:50%;background:var(--gray);flex-shrink:0}
+    .update-dot.ok{background:var(--green)}
+    .update-dot.loading{background:var(--yellow);animation:pulse 1s infinite}
+    .update-dot.error{background:var(--red)}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    .update-btn{background:transparent;border:none;color:var(--blue);font-family:'Noto Sans KR',sans-serif;font-size:11px;cursor:pointer;padding:0;text-decoration:underline}
+    .tabs{display:flex;background:var(--surface);border-radius:12px;padding:4px;margin-bottom:10px}
+    .tab{flex:1;padding:9px 4px;border:none;background:transparent;border-radius:9px;font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .2s}
+    .tab.active{background:var(--surface2);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+    .mode-info{background:var(--surface);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+    .mode-info-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px}
+    .mode-info-list{list-style:none;display:flex;flex-direction:column;gap:5px}
+    .mode-info-list li{font-size:10px;color:var(--text2);display:flex;align-items:flex-start;gap:6px;line-height:1.5}
+    .dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px}
+    .d-blue{background:var(--blue)}.d-yellow{background:var(--yellow)}.d-green{background:var(--green)}.d-gray{background:var(--gray)}
+    .balls-section{background:var(--surface);border-radius:var(--radius);padding:20px 16px;margin-bottom:14px;min-height:108px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .balls-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center}
+    .ball{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;transform:scale(0);transition:transform .4s cubic-bezier(.34,1.56,.64,1);box-shadow:inset -3px -4px 0 rgba(0,0,0,0.2),0 4px 12px rgba(0,0,0,0.3)}
+    .ball.show{transform:scale(1)}
+    .ball.y{background:var(--yellow);color:#222}
+    .ball.b{background:var(--blue);color:#fff}
+    .ball.r{background:var(--red);color:#fff}
+    .ball.k{background:var(--gray);color:#fff}
+    .ball.g{background:var(--green);color:#fff}
+    .bonus-sep{display:flex;align-items:center;gap:8px;margin:12px 0 10px;width:100%}
+    .bonus-sep::before,.bonus-sep::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.1)}
+    .bonus-sep span{font-size:10px;color:var(--text2)}
+    .placeholder-text{color:var(--text2);font-size:13px;text-align:center}
+    .result-tags{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+    .rtag{font-size:10px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,0.07);color:var(--text2)}
+    .rtag.hi{background:rgba(58,134,255,0.18);color:#7ab8ff}
+    .draw-btn{width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:900;cursor:pointer;transition:all .15s;margin-bottom:12px;box-shadow:0 4px 20px rgba(230,57,70,0.4)}
+    .draw-btn:active{transform:scale(0.97);box-shadow:none}
+    .draw-btn:disabled{background:var(--gray);box-shadow:none;cursor:not-allowed}
+    .chart-card{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+    .card-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px}
+    .bar-chart{display:flex;align-items:flex-end;gap:2px;height:72px;padding-bottom:14px}
+    .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}
+    .bar{width:100%;border-radius:2px 2px 0 0;transition:all .3s}
+    .bar-lbl{font-size:6px;color:var(--text2);transform:rotate(-90deg);white-space:nowrap}
+    .chart-legend{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+    .leg{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text2)}
+    .leg-dot{width:7px;height:7px;border-radius:50%}
+    .history-card{background:var(--surface);border-radius:var(--radius);padding:16px}
+    .hist-item{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+    .hist-item:last-child{border-bottom:none}
+    .hball{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;box-shadow:inset -1px -2px 0 rgba(0,0,0,0.2)}
+    .hball.y{background:var(--yellow);color:#222}
+    .hball.b{background:var(--blue);color:#fff}
+    .hball.r{background:var(--red);color:#fff}
+    .hball.k{background:var(--gray);color:#fff}
+    .hball.g{background:var(--green);color:#fff}
+    .hbonus{background:transparent!important;border:2px dashed}
+    .hbonus.y{border-color:var(--yellow);color:var(--yellow)!important}
+    .hbonus.b{border-color:var(--blue);color:var(--blue)!important}
+    .hbonus.r{border-color:var(--red);color:var(--red)!important}
+    .hbonus.k{border-color:var(--gray);color:var(--gray)!important}
+    .hbonus.g{border-color:var(--green);color:var(--green)!important}
+    .hplus{font-size:12px;color:var(--text2)}
+    .round-lbl{font-size:10px;color:var(--text2);min-width:22px;flex-shrink:0}
+    .mode-tag{font-size:9px;padding:1px 6px;border-radius:999px;margin-left:auto;flex-shrink:0}
+    .mode-tag.adv{background:rgba(58,134,255,0.2);color:#6db0ff}
+    .mode-tag.s{background:rgba(160,160,160,0.15);color:var(--text2)}
+    .mode-tag.r{background:rgba(255,255,255,0.07);color:var(--text2)}
+    .footer{text-align:center;margin-top:20px;font-size:10px;color:rgba(255,255,255,0.2)}
+    .recent-card{background:var(--surface);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+    .recent-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
+    .recent-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:transparent;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+    .recent-toggle-left{display:flex;align-items:center;gap:8px}
+    .recent-toggle-title{font-size:13px;font-weight:700;color:var(--text)}
+    .recent-badge{font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(247,197,0,0.15);color:var(--yellow)}
+    .recent-arrow{font-size:12px;color:var(--text2);transition:transform .25s}
+    .recent-arrow.open{transform:rotate(180deg)}
+    .recent-body{max-height:0;overflow:hidden;transition:max-height .3s ease}
+    .recent-body.open{max-height:600px}
+    .recent-inner{padding:0 16px 14px}
+    .recent-item{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+    .recent-item:last-child{border-bottom:none}
+    .recent-round{font-size:11px;color:var(--text2);min-width:46px;flex-shrink:0}
+    .hist-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:transparent;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+    .history-card{background:var(--surface);border-radius:var(--radius);margin-bottom:14px;overflow:hidden}
+    .history-card .histList-inner{padding:0 16px 14px}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <span class="header-icon">🎱</span>
+    <h1>로또 통계 추첨기</h1>
+  </div>
+
+  <div class="update-bar">
+    <div class="update-dot loading" id="updateDot"></div>
+    <span id="updateText">최신 데이터 불러오는 중...</span>
+    <button class="update-btn" id="refreshBtn" onclick="loadData()" style="display:none">새로고침</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="setMode('adv',this)">🔬 고급 통계</button>
+    <button class="tab" onclick="setMode('stat',this)">📊 기본 통계</button>
+    <button class="tab" onclick="setMode('rand',this)">🎲 순수 랜덤</button>
+  </div>
+
+  <div class="mode-info" id="modeInfo"></div>
+
+  <div class="balls-section">
+    <p class="placeholder-text" id="placeholder">버튼을 눌러 번호를 추첨하세요 ✨</p>
+    <div class="balls-row" id="mainBalls" style="display:none"></div>
+    <div class="bonus-sep" id="bonusSep" style="display:none"><span>보너스 번호</span></div>
+    <div class="balls-row" id="bonusBall" style="display:none"></div>
+    <div class="result-tags" id="resultTags" style="display:none"></div>
+  </div>
+
+  <button class="draw-btn" onclick="draw()" id="drawBtn">🎯 번호 추첨</button>
+
+  <!-- 최근 실제 당첨번호 (항상 표시) -->
+  <div class="recent-card">
+    <div class="recent-header">
+      <span class="recent-toggle-title">🏆 최근 실제 당첨번호</span>
+      <span class="recent-badge" id="recentBadge">최근 5회</span>
+    </div>
+    <div class="recent-inner" id="recentList">
+      <p style="font-size:12px;color:var(--text2);padding:4px 0">데이터 불러오는 중...</p>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <p class="card-title" id="chartTitle">번호별 역대 출현 횟수 (로딩 중...)</p>
+    <div class="bar-chart" id="barChart"></div>
+    <div class="chart-legend">
+      <div class="leg"><div class="leg-dot" style="background:#f7c500"></div>1~10</div>
+      <div class="leg"><div class="leg-dot" style="background:#3a86ff"></div>11~20</div>
+      <div class="leg"><div class="leg-dot" style="background:#e63946"></div>21~30</div>
+      <div class="leg"><div class="leg-dot" style="background:#8d8d8d"></div>31~40</div>
+      <div class="leg"><div class="leg-dot" style="background:#2dc060"></div>41~45</div>
+    </div>
+  </div>
+
+  <div class="history-card" id="histCard" style="display:none">
+    <button class="hist-toggle" onclick="toggleHistory()">
+      <span class="card-title" id="histTitle" style="margin-bottom:0">최근 추첨 기록</span>
+      <span class="recent-arrow" id="histArrow">▼</span>
+    </button>
+    <div class="recent-body open" id="histBody">
+      <div id="histList"></div>
+    </div>
+  </div>
+
+  <div class="footer">로또 당첨 확률 1/8,145,060 — 재미로만 즐겨주세요 🍀</div>
+</div>
+
+<script>
+const BASE_FREQ=[0,199,188,201,194,178,197,200,179,158,188,190,204,202,193,190,194,202,191,189,196,190,161,168,197,172,195,211,176,169,188,195,175,204,204,191,186,197,199,190,194,164,178,197,185,193];
+const BASE_ROUND=1216;
+const ZONES=[[1,10],[11,20],[21,30],[31,40],[41,45]];
+const COLORS=['','y','y','y','y','y','y','y','y','y','y','b','b','b','b','b','b','b','b','b','b','r','r','r','r','r','r','r','r','r','r','k','k','k','k','k','k','k','k','k','k','g','g','g','g','g'];
+const BAR_CLR=['','#f7c500','#f7c500','#f7c500','#f7c500','#f7c500','#f7c500','#f7c500','#f7c500','#f7c500','#f7c500','#3a86ff','#3a86ff','#3a86ff','#3a86ff','#3a86ff','#3a86ff','#3a86ff','#3a86ff','#3a86ff','#3a86ff','#e63946','#e63946','#e63946','#e63946','#e63946','#e63946','#e63946','#e63946','#e63946','#e63946','#8d8d8d','#8d8d8d','#8d8d8d','#8d8d8d','#8d8d8d','#8d8d8d','#8d8d8d','#8d8d8d','#8d8d8d','#8d8d8d','#2dc060','#2dc060','#2dc060','#2dc060','#2dc060'];
+const SUM_MIN=100, SUM_MAX=175, RECENT_N=52, RECENT_BOOST=2.5;
+
+let FREQ=[...BASE_FREQ], latestRound=BASE_ROUND;
+let recentRounds=[], mode='adv', history=[], drawCount=0, drawing=false;
+
+// 모드 설명
+const MINFO={
+  adv:{title:'🔬 고급 통계 모드 — 3가지 분석 적용',items:[
+    {c:'d-blue',t:'전체 빈도 가중치: 1~'+BASE_ROUND+'회 전체 출현 횟수 반영'},
+    {c:'d-yellow',t:'최근 트렌드 가중치: 최근 52회(약 1년) 출현 번호에 ×1.6 추가 가중'},
+    {c:'d-green',t:'구간 균형: 5개 색상 구간에서 역대 통계 비율대로 번호 분배'},
+    {c:'d-gray',t:'합계 필터: 역대 당첨번호 6개 합이 100~175 범위인 조합만 채택'},
+  ]},
+  stat:{title:'📊 기본 통계 모드',items:[
+    {c:'d-blue',t:'전체 빈도 가중치만 적용 — 많이 나온 번호에 높은 확률'},
+    {c:'d-gray',t:'구간 균형·합계 필터·최근 트렌드 미적용'},
+  ]},
+  rand:{title:'🎲 순수 랜덤 모드',items:[
+    {c:'d-gray',t:'모든 번호 동일 확률 (1/45)'},
+    {c:'d-gray',t:'통계 분석 전혀 미적용'},
+  ]}
+};
+
+function renderModeInfo(){
+  const info=MINFO[mode];
+  document.getElementById('modeInfo').innerHTML=
+    `<p class="mode-info-title">${info.title}</p>
+     <ul class="mode-info-list">${info.items.map(i=>`<li><span class="dot ${i.c}"></span>${i.t}</li>`).join('')}</ul>`;
+}
+
+// 가중치 빌드
+function buildWeights(){
+  const w = new Array(46).fill(0);
+  if(mode === 'rand'){
+    // 순수 랜덤: 모두 동일
+    for(let i=1;i<=45;i++) w[i] = 1;
+  } else if(mode === 'stat'){
+    // 기본 통계: 출현 횟수 제곱으로 차이 확대
+    for(let i=1;i<=45;i++) w[i] = FREQ[i] * FREQ[i];
+  } else {
+    // 고급: 전체 빈도 + 최근 트렌드 가중
+    const rf = new Array(46).fill(0);
+    recentRounds.forEach(r => { r.nums.forEach(n => rf[n]++); rf[r.bonus]++; });
+    for(let i=1;i<=45;i++) w[i] = FREQ[i] * FREQ[i] + rf[i] * FREQ[i] * RECENT_BOOST;
+  }
+  return w;
+}
+
+// 가중 샘플
+function wSample(pool,w,count){
+  const rem=[...pool]; const picked=[];
+  for(let c=0;c<count;c++){
+    const tot=rem.reduce((s,n)=>s+w[n],0);
+    let r=Math.random()*tot, chosen=rem[rem.length-1];
+    for(const n of rem){r-=w[n];if(r<=0){chosen=n;break;}}
+    picked.push(chosen);
+    rem.splice(rem.indexOf(chosen),1);
+  }
+  return picked;
+}
+
+// 구간별 개수 배분 — 합계가 반드시 total이 되도록 보정
+function distributeZones(total, zw){
+  const maxCap = ZONES.map(([s,e]) => e - s + 1);
+  const counts = new Array(5).fill(0);
+  for(let p = 0; p < total; p++){
+    // 아직 여유 있는 구간만 후보
+    const cap = zw.map((w, z) => counts[z] < maxCap[z] ? w : 0);
+    const sum = cap.reduce((s,c) => s + c, 0);
+    if(sum === 0) break;
+    let r = Math.random() * sum;
+    let chosen = -1;
+    for(let z = 0; z < 5; z++){
+      r -= cap[z];
+      if(r <= 0){ chosen = z; break; }
+    }
+    // 부동소수점으로 아무도 안 뽑힌 경우 마지막 여유 구간에 배정
+    if(chosen === -1) chosen = cap.reduce((best, c, z) => c > 0 ? z : best, 0);
+    counts[chosen]++;
+  }
+  return counts;
+}
+
+// 고급 추첨
+function advancedPick(){
+  const w=buildWeights();
+  const zw=ZONES.map(([s,e])=>{let sum=0;for(let i=s;i<=e;i++)sum+=FREQ[i];return sum;});
+  for(let attempt=0;attempt<100;attempt++){
+    const zc=distributeZones(6,zw);
+    let main=[];
+    for(let z=0;z<5;z++){
+      const pool=[];
+      for(let i=ZONES[z][0];i<=ZONES[z][1];i++) pool.push(i);
+      main=main.concat(wSample(pool,w,zc[z]));
+    }
+    main.sort((a,b)=>a-b);
+    const sum=main.reduce((s,n)=>s+n,0);
+    if(sum>=SUM_MIN&&sum<=SUM_MAX){
+      const bp=[];for(let i=1;i<=45;i++)if(!main.includes(i))bp.push(i);
+      return{main,bonus:wSample(bp,w,1)[0],sum};
+    }
+  }
+  // 100회 실패시 필터 없이
+  const all=Array.from({length:45},(_,i)=>i+1);
+  const main=wSample(all,w,6).sort((a,b)=>a-b);
+  const bp=all.filter(n=>!main.includes(n));
+  return{main,bonus:wSample(bp,w,1)[0],sum:main.reduce((s,n)=>s+n,0)};
+}
+
+function statPick(){
+  const w=buildWeights();
+  const all=Array.from({length:45},(_,i)=>i+1);
+  const main=wSample(all,w,6).sort((a,b)=>a-b);
+  const bp=all.filter(n=>!main.includes(n));
+  return{main,bonus:wSample(bp,w,1)[0],sum:main.reduce((s,n)=>s+n,0)};
+}
+
+function randomPick(){
+  const pool=Array.from({length:45},(_,i)=>i+1);
+  const nums=[];
+  while(nums.length<7){const i=Math.floor(Math.random()*pool.length);nums.push(pool.splice(i,1)[0]);}
+  const main=nums.slice(0,6).sort((a,b)=>a-b);
+  return{main,bonus:nums[6],sum:main.reduce((s,n)=>s+n,0)};
+}
+
+function pick(){return mode==='adv'?advancedPick():mode==='stat'?statPick():randomPick();}
+
+// 모드별 독립 결과 저장
+const modeResults = { adv: null, stat: null, rand: null };
+const modeDrawCount = { adv: 0, stat: 0, rand: 0 };
+
+function draw(){
+  if(drawing) return;
+  drawing = true;
+  const btn = document.getElementById('drawBtn');
+  btn.textContent = '추첨 중...'; btn.disabled = true;
+
+  const {main, bonus, sum} = pick();
+  modeDrawCount[mode]++;
+  // 현재 모드 결과 저장
+  modeResults[mode] = {main, bonus, sum, count: modeDrawCount[mode]};
+
+  animateBalls(main, bonus, sum, () => {
+    drawing = false;
+    btn.textContent = '🎯 다시 추첨'; btn.disabled = false;
+    // 히스토리에 추가
+    history.unshift({round: modeDrawCount[mode], main, bonus, mode, sum});
+    if(history.length > 10) history.pop();
+    updateHistory();
+    highlightBars(main, bonus);
+  });
+}
+
+function animateBalls(main, bonus, sum, onDone){
+  const ph  = document.getElementById('placeholder');
+  const mb  = document.getElementById('mainBalls');
+  const bb  = document.getElementById('bonusBall');
+  const sep = document.getElementById('bonusSep');
+  const rt  = document.getElementById('resultTags');
+
+  ph.style.display = 'none'; rt.style.display = 'none';
+  mb.style.display = 'flex'; bb.style.display = 'none'; sep.style.display = 'none';
+  mb.innerHTML = ''; bb.innerHTML = '';
+
+  main.forEach(n => {
+    const d = document.createElement('div');
+    d.className = `ball ${COLORS[n]}`; d.textContent = n;
+    mb.appendChild(d);
+  });
+
+  const balls = [...mb.querySelectorAll('.ball')]; let i = 0;
+  function showNext(){
+    if(i < balls.length){ balls[i].classList.add('show'); i++; setTimeout(showNext, 200); }
+    else setTimeout(() => {
+      sep.style.display = 'flex'; bb.style.display = 'flex';
+      const bd = document.createElement('div');
+      bd.className = `ball ${COLORS[bonus]}`; bd.textContent = bonus;
+      bb.appendChild(bd);
+      setTimeout(() => {
+        bd.classList.add('show');
+        if(mode !== 'rand'){
+          const odd = main.filter(n => n%2 !== 0).length;
+          const zones = ZONES.map(([s,e]) => main.filter(n => n>=s && n<=e).length);
+          const inRange = sum >= SUM_MIN && sum <= SUM_MAX;
+          rt.innerHTML = `
+            <span class="rtag ${inRange?'hi':''}">합계 ${sum}${inRange?' ✓':''}</span>
+            <span class="rtag">홀 ${odd} / 짝 ${6-odd}</span>
+            <span class="rtag">구간 ${zones.join('-')}</span>`;
+          rt.style.display = 'flex';
+        }
+        onDone();
+      }, 50);
+    }, 300);
+  }
+  showNext();
+}
+
+// 탭 전환 시 해당 모드의 저장된 결과 즉시 표시
+function showModeResult(){
+  const result = modeResults[mode];
+  const ph  = document.getElementById('placeholder');
+  const mb  = document.getElementById('mainBalls');
+  const bb  = document.getElementById('bonusBall');
+  const sep = document.getElementById('bonusSep');
+  const rt  = document.getElementById('resultTags');
+  const btn = document.getElementById('drawBtn');
+
+  if(!result){
+    // 이 모드에서 아직 추첨 안 함
+    ph.style.display = 'block';
+    mb.style.display = 'none'; bb.style.display = 'none';
+    sep.style.display = 'none'; rt.style.display = 'none';
+    mb.innerHTML = ''; bb.innerHTML = '';
+    btn.textContent = '🎯 번호 추첨';
+    resetBars();
+    return;
+  }
+
+  // 저장된 결과 표시 (애니메이션 없이 즉시)
+  const {main, bonus, sum} = result;
+  ph.style.display = 'none';
+  mb.style.display = 'flex'; bb.style.display = 'flex'; sep.style.display = 'flex';
+  mb.innerHTML = main.map(n => `<div class="ball ${COLORS[n]} show">${n}</div>`).join('');
+  bb.innerHTML = `<div class="ball ${COLORS[bonus]} show">${bonus}</div>`;
+  btn.textContent = '🎯 다시 추첨';
+
+  if(mode !== 'rand'){
+    const odd = main.filter(n => n%2 !== 0).length;
+    const zones = ZONES.map(([s,e]) => main.filter(n => n>=s && n<=e).length);
+    const inRange = sum >= SUM_MIN && sum <= SUM_MAX;
+    rt.innerHTML = `
+      <span class="rtag ${inRange?'hi':''}">합계 ${sum}${inRange?' ✓':''}</span>
+      <span class="rtag">홀 ${odd} / 짝 ${6-odd}</span>
+      <span class="rtag">구간 ${zones.join('-')}</span>`;
+    rt.style.display = 'flex';
+  } else {
+    rt.style.display = 'none';
+  }
+  highlightBars(main, bonus);
+}
+
+function resetBars(){
+  document.querySelectorAll('.bar-col .bar').forEach(bar => { bar.style.opacity = '1'; });
+}
+
+function setMode(m, el){
+  mode = m;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderModeInfo();
+  showModeResult(); // 해당 모드의 저장된 결과 표시
+}
+
+function highlightBars(main,bonus){
+  const hi=new Set([...main,bonus]);
+  document.querySelectorAll('.bar-col').forEach(col=>{
+    col.querySelector('.bar').style.opacity=hi.has(parseInt(col.dataset.n))?'1':'0.22';
+  });
+}
+
+function updateHistory(){
+  const hc=document.getElementById('histCard');
+  const hl=document.getElementById('histList');
+  if(!history.length){hc.style.display='none';return;}
+  hc.style.display='block';
+  document.getElementById('histTitle').textContent=`최근 추첨 기록 (${history.length}회)`;
+  const tc={adv:'adv',stat:'s',rand:'r'}, tl={adv:'고급',stat:'통계',rand:'랜덤'};
+  hl.innerHTML='<div style="padding:0 16px 12px">'+history.map(h=>`
+    <div class="hist-item">
+      <span class="round-lbl">${h.round}회</span>
+      ${h.main.map(n=>`<div class="hball ${COLORS[n]}">${n}</div>`).join('')}
+      <span class="hplus">+</span>
+      <div class="hball ${COLORS[h.bonus]} hbonus">${h.bonus}</div>
+      <span class="mode-tag ${tc[h.mode]}">${tl[h.mode]}</span>
+    </div>`).join('')+'</div>';
+}
+
+function buildChart(){
+  const chart=document.getElementById('barChart');
+  const min=Math.min(...FREQ.slice(1)), max=Math.max(...FREQ.slice(1));
+  chart.innerHTML='';
+  for(let i=1;i<=45;i++){
+    const pct=((FREQ[i]-min)/(max-min))*55+10;
+    const col=document.createElement('div'); col.className='bar-col'; col.dataset.n=i;
+    col.innerHTML=`<div class="bar" style="height:${pct.toFixed(1)}px;background:${BAR_CLR[i]}"></div><span class="bar-lbl">${i}</span>`;
+    chart.appendChild(col);
+  }
+}
+
+// ── 동행복권 API (다중 프록시 + 병렬 fetch) ──
+const PROXIES=[
+  url=>`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+  url=>`https://corsproxy.io/?${encodeURIComponent(url)}`,
+];
+
+async function fetchWithProxy(round, proxyFn){
+  const url=`https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${round}`;
+  const res=await fetch(proxyFn(url),{signal:AbortSignal.timeout(5000)});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const text=await res.text();
+  // allorigins: {contents:"..."}, codetabs/corsproxy: 직접 JSON
+  let data;
+  try{
+    const outer=JSON.parse(text);
+    data = outer.contents ? JSON.parse(outer.contents) : outer;
+  }catch{ throw new Error('parse fail'); }
+  if(!data||data.returnValue!=='success') return null;
+  return{
+    round: data.drwNo,
+    nums: [data.drwtNo1,data.drwtNo2,data.drwtNo3,data.drwtNo4,data.drwtNo5,data.drwtNo6],
+    bonus: data.bnusNo,
+    date: data.drwNoDate || ''
+  };
+}
+
+// 프록시 자동 순환 — 성공한 프록시 인덱스 기억
+let proxyIdx=0;
+async function fetchRoundData(round){
+  // 현재 프록시부터 순서대로 시도
+  for(let i=0;i<PROXIES.length;i++){
+    const idx=(proxyIdx+i)%PROXIES.length;
+    try{
+      const data=await fetchWithProxy(round,PROXIES[idx]);
+      proxyIdx=idx; // 성공한 프록시 기억
+      return data;
+    }catch(e){ /* 다음 프록시로 */ }
+  }
+  return null; // 모든 프록시 실패
+}
+
+// 여러 회차 병렬 fetch (배치 단위)
+async function fetchBatch(rounds){
+  const results=await Promise.allSettled(rounds.map(r=>fetchRoundData(r)));
+  return results.map(r=>r.status==='fulfilled'?r.value:null);
+}
+
+// 캐시
+const CACHE_KEY='lotto_v3';
+function loadCache(){try{const r=localStorage.getItem(CACHE_KEY);return r?JSON.parse(r):{lastRound:BASE_ROUND,extra:[]};}catch{return{lastRound:BASE_ROUND,extra:[]};}}
+function saveCache(lastRound,extra){try{localStorage.setItem(CACHE_KEY,JSON.stringify({lastRound,extra}));}catch{}}
+
+function applyExtra(extra, lastRound){
+  FREQ=[...BASE_FREQ];
+  extra.forEach(r=>{r.nums.forEach(n=>FREQ[n]++);FREQ[r.bonus]++;});
+  latestRound=lastRound;
+  recentRounds=extra.slice(-RECENT_N);
+}
+
+// ── Netlify Function 호출 (서버 측 프록시) ──
+async function fetchFromServer(params = '') {
+  const res = await fetch(`/.netlify/functions/lotto${params}`, {
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error('server error');
+  return await res.json();
+}
+
+// 최근 실제 당첨번호: Netlify Function으로 완전 자동
+async function fetchLatest5() {
+  const list = document.getElementById('recentList');
+
+  // 캐시 즉시 표시
+  try {
+    const cache = loadCache();
+    if (cache.extra && cache.extra.length > 0) {
+      const cached = [...cache.extra].sort((a, b) => b.round - a.round).slice(0, 5);
+      renderRecentWinning(cached);
+    }
+  } catch (e) {}
+
+  // Netlify Function으로 최신 당첨번호 fetch
+  try {
+    const data = await fetchFromServer();
+    if (data.rounds && data.rounds.length > 0) {
+      renderRecentWinning(data.rounds.slice(0, 5));
+
+      // 통계 캐시에도 병합 저장
+      const cache = loadCache();
+      const existing = new Set(cache.extra.map(e => e.round));
+      let updated = false;
+      data.rounds.forEach(r => {
+        if (!existing.has(r.round)) {
+          cache.extra.push(r);
+          updated = true;
+        }
+      });
+      if (updated) {
+        const maxRound = Math.max(...cache.extra.map(e => e.round));
+        saveCache(maxRound, cache.extra);
+      }
+    }
+  } catch (e) {
+    // 서버 함수 실패 시 캐시로 대체
+    if (list.innerHTML.includes('불러오는 중')) {
+      list.innerHTML = '<p style="font-size:12px;color:var(--text2);padding:4px 0">잠시 후 다시 시도해 주세요.</p>';
+    }
+  }
+}
+
+function renderRecentWinning(rounds){
+  const list = document.getElementById('recentList');
+  const badge = document.getElementById('recentBadge');
+  const recent = [...rounds].sort((a,b) => b.round - a.round).slice(0,5);
+  badge.textContent = `최근 ${recent.length}회`;
+  list.innerHTML = recent.map(r => `
+    <div class="recent-item">
+      <span class="recent-round">${r.round}회</span>
+      ${r.nums.map(n => `<div class="hball ${COLORS[n]}">${n}</div>`).join('')}
+      <span class="hplus">+</span>
+      <div class="hball ${COLORS[r.bonus]} hbonus">${r.bonus}</div>
+      ${r.date ? `<span style="font-size:9px;color:rgba(255,255,255,0.3);margin-left:auto">${r.date}</span>` : ''}
+    </div>`).join('');
+}
+
+let histOpen=true;
+function toggleHistory(){
+  histOpen=!histOpen;
+  document.getElementById('histBody').className='recent-body'+(histOpen?' open':'');
+  document.getElementById('histArrow').className='recent-arrow'+(histOpen?' open':'');
+}
+
+async function loadData() {
+  const dot = document.getElementById('updateDot');
+  const txt = document.getElementById('updateText');
+  const btn = document.getElementById('refreshBtn');
+  btn.style.display = 'none';
+  dot.className = 'update-dot loading';
+  txt.textContent = '최신 데이터 불러오는 중...';
+
+  const cache = loadCache();
+  let extra = [...cache.extra], lastRound = cache.lastRound;
+
+  // 캐시 즉시 적용
+  applyExtra(extra, lastRound);
+  buildChart();
+
+  const firstDraw = new Date('2002-12-07');
+  const estimated = 1 + Math.floor((new Date() - firstDraw) / (7 * 24 * 60 * 60 * 1000));
+
+  if (lastRound >= estimated) {
+    dot.className = 'update-dot ok';
+    txt.textContent = `최신 데이터 (${lastRound}회 기준)`;
+    document.getElementById('chartTitle').textContent = `번호별 역대 출현 횟수 (1~${lastRound}회)`;
+    btn.style.display = 'inline';
+    return;
+  }
+
+  // Netlify Function으로 새 회차 fetch
+  try {
+    let fetchRound = lastRound + 1;
+    let newCount = 0;
+
+    while (fetchRound <= estimated + 1) {
+      const data = await fetchFromServer(`?round=${fetchRound}`);
+      if (!data.rounds || data.rounds.length === 0) break;
+
+      const r = data.rounds[0];
+      const exists = extra.find(e => e.round === r.round);
+      if (!exists) {
+        extra.push(r);
+        lastRound = r.round;
+        newCount++;
+        txt.textContent = `업데이트 중... ${newCount}회차 완료`;
+        applyExtra(extra, lastRound);
+        buildChart();
+      }
+      fetchRound++;
+    }
+
+    saveCache(lastRound, extra);
+    dot.className = 'update-dot ok';
+    txt.textContent = newCount > 0
+      ? `${newCount}회차 업데이트 완료 — 최신 ${lastRound}회 기준`
+      : `최신 데이터 (${lastRound}회 기준)`;
+    document.getElementById('chartTitle').textContent = `번호별 역대 출현 횟수 (1~${lastRound}회)`;
+    btn.style.display = 'inline';
+  } catch (e) {
+    dot.className = 'update-dot error';
+    txt.textContent = `업데이트 실패 — ${lastRound}회 데이터 사용 중`;
+    btn.style.display = 'inline';
+  }
+  buildChart();
+}
+
+renderModeInfo();
+buildChart();
+loadData();      // 통계 데이터 업데이트 (독립 실행)
+fetchLatest5();  // 최근 당첨번호 표시 (독립 실행)
+</script>
+</body>
+</html>
