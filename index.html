@@ -592,7 +592,9 @@ async function fetchLatest5() {
     if (!res.ok) throw new Error('fetch failed');
     const data = await res.json();
     if (data.rounds && data.rounds.length > 0) {
-      renderRecentWinning(data.rounds);
+      // 최신 5회만 표시
+      const top5 = [...data.rounds].sort((a,b) => b.round - a.round).slice(0, 5);
+      renderRecentWinning(top5);
       return;
     }
   } catch (e) {
@@ -639,59 +641,45 @@ async function loadData() {
   dot.className = 'update-dot loading';
   txt.textContent = '최신 데이터 불러오는 중...';
 
-  const cache = loadCache();
-  let extra = [...cache.extra], lastRound = cache.lastRound;
-
-  // 캐시 즉시 적용
-  applyExtra(extra, lastRound);
-  buildChart();
-
-  const firstDraw = new Date('2002-12-07');
-  const estimated = 1 + Math.floor((new Date() - firstDraw) / (7 * 24 * 60 * 60 * 1000));
-
-  if (lastRound >= estimated) {
-    dot.className = 'update-dot ok';
-    txt.textContent = `최신 데이터 (${lastRound}회 기준)`;
-    document.getElementById('chartTitle').textContent = `번호별 역대 출현 횟수 (1~${lastRound}회)`;
-    btn.style.display = 'inline';
-    return;
-  }
-
-  // Netlify Function으로 새 회차 fetch
   try {
-    let fetchRound = lastRound + 1;
-    let newCount = 0;
+    // /data/lotto.json 에서 직접 읽기 (같은 서버 → CORS 없음, 항상 성공)
+    const res = await fetch('/data/lotto.json?t=' + Date.now(), {
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) throw new Error('lotto.json 없음');
+    const data = await res.json();
 
-    while (fetchRound <= estimated + 1) {
-      const data = await fetchFromServer(`?round=${fetchRound}`);
-      if (!data.rounds || data.rounds.length === 0) break;
+    if (data.rounds && data.rounds.length > 0) {
+      // BASE_FREQ(1~1216회)에 lotto.json의 모든 새 회차를 추가 반영
+      FREQ = [...BASE_FREQ];
+      data.rounds.forEach(r => {
+        r.nums.forEach(n => FREQ[n]++);
+        FREQ[r.bonus]++;
+      });
+      const latestRound = data.latest || Math.max(...data.rounds.map(r => r.round));
+      // 최근 52회 트렌드용
+      recentRounds = data.rounds.slice(0, RECENT_N);
+      buildChart();
 
-      const r = data.rounds[0];
-      const exists = extra.find(e => e.round === r.round);
-      if (!exists) {
-        extra.push(r);
-        lastRound = r.round;
-        newCount++;
-        txt.textContent = `업데이트 중... ${newCount}회차 완료`;
-        applyExtra(extra, lastRound);
-        buildChart();
-      }
-      fetchRound++;
+      dot.className = 'update-dot ok';
+      txt.textContent = `최신 데이터 (${latestRound}회 기준)`;
+      document.getElementById('chartTitle').textContent =
+        `번호별 역대 출현 횟수 (1~${latestRound}회)`;
+      btn.style.display = 'inline';
+      return;
     }
-
-    saveCache(lastRound, extra);
-    dot.className = 'update-dot ok';
-    txt.textContent = newCount > 0
-      ? `${newCount}회차 업데이트 완료 — 최신 ${lastRound}회 기준`
-      : `최신 데이터 (${lastRound}회 기준)`;
-    document.getElementById('chartTitle').textContent = `번호별 역대 출현 횟수 (1~${lastRound}회)`;
-    btn.style.display = 'inline';
   } catch (e) {
-    dot.className = 'update-dot error';
-    txt.textContent = `업데이트 실패 — ${lastRound}회 데이터 사용 중`;
-    btn.style.display = 'inline';
+    // lotto.json 로드 실패 → 내장 BASE_FREQ 사용
   }
+
+  // fallback: 내장 기본 데이터(1~1216회)
+  FREQ = [...BASE_FREQ];
   buildChart();
+  dot.className = 'update-dot ok';
+  txt.textContent = `기본 데이터 (${BASE_ROUND}회 기준)`;
+  document.getElementById('chartTitle').textContent =
+    `번호별 역대 출현 횟수 (1~${BASE_ROUND}회)`;
+  btn.style.display = 'inline';
 }
 
 renderModeInfo();
