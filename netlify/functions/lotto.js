@@ -20,8 +20,12 @@ exports.handler = async (event) => {
     try {
       const url = `https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${r}`;
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(6000),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Referer': 'https://www.dhlottery.co.kr/',
+        },
+        signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) return;
       const data = await res.json();
