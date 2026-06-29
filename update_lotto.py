@@ -108,10 +108,11 @@ for r in range(BASE_ROUND + 1, estimated + 3):
     new_count += 1
     print(f"  OK {entry['round']}회 ({entry['date']}): {entry['nums']} + {entry['bonus']}")
 
+all_rounds = sorted(existing.values(), key=lambda x: x['round'], reverse=True)
+
 if new_count == 0:
     print("새로운 회차 없음 — 이미 최신 상태입니다.")
 else:
-    all_rounds = sorted(existing.values(), key=lambda x: x['round'], reverse=True)
     os.makedirs('data', exist_ok=True)
     result = {
         'updated': datetime.now().strftime('%Y-%m-%d'),
@@ -121,3 +122,32 @@ else:
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(f"\n완료! {new_count}개 신규 추가 — 총 {len(all_rounds)}회차 저장 (최신: {all_rounds[0]['round']}회)")
+
+# index.html의 fallback 데이터도 항상 최신 5회로 업데이트
+import re
+
+top5 = all_rounds[:5]
+
+def fmt(r):
+    nums = ', '.join(str(n) for n in r['nums'])
+    return f"    {{ round:{r['round']}, nums:[{nums}],  bonus:{r['bonus']},  date:'{r['date']}' }},"
+
+new_fallback = (
+    "  // fallback: 내장 데이터\n"
+    "  renderRecentWinning([\n"
+    + '\n'.join(fmt(r) for r in top5) + "\n"
+    "  ]);"
+)
+
+html_file = 'index.html'
+with open(html_file, 'r', encoding='utf-8') as f:
+    html = f.read()
+
+pattern = r'  // fallback: 내장 데이터\n  renderRecentWinning\(\[[\s\S]*?\]\);'
+if re.search(pattern, html):
+    new_html = re.sub(pattern, new_fallback, html)
+    with open(html_file, 'w', encoding='utf-8') as f:
+        f.write(new_html)
+    print(f"index.html fallback 업데이트 완료 (최신: {top5[0]['round']}회)")
+else:
+    print("경고: index.html fallback 패턴을 찾지 못했습니다.")
